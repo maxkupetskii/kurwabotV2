@@ -125,6 +125,10 @@ async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.callback_query.message.reply_text("Мест 0, тыкай плюсики!")
         await update.callback_query.message.reply_text("🍷Wine tasting roulette!🍷", reply_markup=generate_keyboard())
         return
+    if len(users) == 0:
+        await update.callback_query.message.reply_text("Людей нема, надо ждать!")
+        await update.callback_query.message.reply_text("🍷Wine tasting roulette!🍷", reply_markup=generate_keyboard())
+        return
 
     reply_keyboard = [["Стартуём!", "Не"]]
     await update.callback_query.message.reply_text(
