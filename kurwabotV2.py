@@ -108,7 +108,7 @@ async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reply_keyboard = [["Стираём всех!", "Не"]]
         await update.message.reply_text(
             "Дега уже создана, херим?",
-            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
         )
 
 
@@ -128,11 +128,10 @@ async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if len(users) == 0:
         await update.callback_query.message.reply_text("Людей нема, надо ждать!")
         return
-
     reply_keyboard = [["Стартуём!", "Не"]]
     await update.callback_query.message.reply_text(
         "Вращаем барабан?",
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
     )
 
 
