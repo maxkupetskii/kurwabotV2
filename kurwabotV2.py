@@ -44,7 +44,7 @@ def restricted(func):
     return wrapped
 
 
-current_tasting = None
+current_tasting, current_tasting_message_id = None, None
 people: int = 0
 users: dict[int, telegram.User] = {}
 
@@ -99,10 +99,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @restricted
 async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global current_tasting
+    global current_tasting, current_tasting_message_id
     if current_tasting is None:
         current_tasting = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        await update.message.reply_text("🍷Wine tasting roulette!🍷", reply_markup=generate_keyboard())
+        init_message = await update.message.reply_text("🍷Wine tasting roulette!🍷", reply_markup=generate_keyboard())
+        current_tasting_message_id = init_message.message_id
     else:
         reply_keyboard = [["Стираём всех!", "Не"]]
         await update.message.reply_text(
@@ -133,13 +134,13 @@ async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     reply_keyboard = [["Стартуём!", "Не"]]
     await update.callback_query.message.reply_text(
         "Вращаем барабан?",
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, input_field_placeholder="Го?")
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     )
 
 
 @restricted
 async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global users, current_tasting, people
+    global users, current_tasting, current_tasting_message_id, people
     if current_tasting is None:
         return
     initiated_user = update.effective_user
@@ -147,9 +148,9 @@ async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     random.shuffle(all_ids)
     winners = winners_message(all_ids)
     winners += f'\n@{initiated_user.username}'
+    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=current_tasting_message_id)
     await update.message.reply_text(winners, reply_markup=ReplyKeyboardRemove())
-    current_tasting = None
-    people = 0
+    current_tasting, current_tasting_message_id, people = None, None, 0
     users.clear()
 
 
