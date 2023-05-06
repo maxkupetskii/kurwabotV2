@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from datetime import datetime
 from match_regex import RegexEqual
+from strings import Strings
 import telegram
 from secrets import ALLOWED_IDS, KURWA_TOKEN
 from actions import Action
@@ -37,7 +38,7 @@ def restricted(func):
     async def wrapped(update, context, *args, **kwargs):
         user = update.effective_user
         if user.id not in ALLOWED_IDS:
-            logger.info(f'юзер {user} не шмог')
+            logger.info(Strings.RESTRICTED.format(user))
             return
         return await func(update, context, *args, **kwargs)
 
@@ -51,13 +52,13 @@ users: dict[int, telegram.User] = {}
 
 def generate_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
-        [InlineKeyboardButton("Choose winners!🎲", callback_data=Action.ROLL.value)],
+        [InlineKeyboardButton(Strings.KEYBOARD_TITLE, callback_data=Action.ROLL.value)],
         [
-            InlineKeyboardButton("(-)", callback_data=Action.MINUS.value),
-            InlineKeyboardButton(f'{people}', callback_data=Action.NUM.value),
-            InlineKeyboardButton("(+)", callback_data=Action.PLUS.value)
+            InlineKeyboardButton(Strings.KEYBOARD_MINUS, callback_data=Action.MINUS.value),
+            InlineKeyboardButton(Strings.KEYBOARD_PEOPLE.format(people), callback_data=Action.NUM.value),
+            InlineKeyboardButton(Strings.KEYBOARD_PLUS, callback_data=Action.PLUS.value)
         ],
-        [InlineKeyboardButton("Add me!🍇", callback_data=Action.ADD_ME.value)]
+        [InlineKeyboardButton(Strings.KEYBOARD_ADD, callback_data=Action.ADD_ME.value)]
     ]
     if len(users) > 0:
         for user_id, user in users.items():
@@ -65,7 +66,7 @@ def generate_keyboard() -> InlineKeyboardMarkup:
             last = f'(@{user.username})' if user.username else user.last_name
             single_user = [
                 InlineKeyboardButton(f'{user.first_name} {last}', callback_data=Action.NAME.value),
-                InlineKeyboardButton("⛔️", callback_data=f'{Action.REMOVE_ME.value} id:{user_id}'),
+                InlineKeyboardButton(Strings.KEYBOARD_REMOVE, callback_data=f'{Action.REMOVE_ME.value} id:{user_id}'),
             ]
             keyboard.append(single_user)
     return InlineKeyboardMarkup(keyboard)
@@ -90,7 +91,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await add_me(update, context)
         case Action.REMOVE_ME.value:
             triggered_id = f'{update.effective_user.id}'
-            id_to_delete = query.data[13:] # haha, magic number
+            id_to_delete = query.data[13:]  # haha, magic number
             if triggered_id == id_to_delete:
                 await remove_me(update, context)
         case _:
@@ -102,12 +103,12 @@ async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     global current_tasting, current_tasting_message_id
     if current_tasting is None:
         current_tasting = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        init_message = await update.message.reply_text("🍷Wine tasting roulette!🍷", reply_markup=generate_keyboard())
+        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=generate_keyboard())
         current_tasting_message_id = init_message.message_id
     else:
-        reply_keyboard = [["Стираём всех!", "Не"]]
+        reply_keyboard = [[Strings.REPLY_DELETE, Strings.REPLY_CANCEL]]
         await update.message.reply_text(
-            "Дега уже создана, херим?",
+            Strings.REPLY_TITLE_DELETE,
             reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
         )
 
@@ -123,14 +124,14 @@ async def kill_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 @restricted
 async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if people == 0:
-        await update.callback_query.message.reply_text("Мест 0, тыкай плюсики!")
+        await update.callback_query.message.reply_text(Strings.REPLY_0_PEOPLE)
         return
     if len(users) == 0:
-        await update.callback_query.message.reply_text("Людей нема, надо ждать!")
+        await update.callback_query.message.reply_text(Strings.REPLY_0_USERS)
         return
-    reply_keyboard = [["Стартуём!", "Не"]]
+    reply_keyboard = [[Strings.REPLY_START, Strings.REPLY_CANCEL]]
     await update.callback_query.message.reply_text(
-        "Вращаем барабан?",
+        Strings.REPLY_TITLE_ROLL,
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
     )
 
@@ -160,13 +161,13 @@ def winners_message(shuffled_ids: list) -> str:
         user_string += "\n"
         return user_string
 
-    winners = "🍷Wine tasting roulette!🍷\n\n"
-    winners += "The winners are:\n"
+    winners = f'{Strings.TITLE}\n\n'
+    winners += f'{Strings.WINNERS}\n'
     for counter, shuffle_id in enumerate(shuffled_ids):
         if counter < people:
             winners += get_user_info(counter, shuffle_id)
         elif counter == people:
-            winners += "Waiting list:\n"
+            winners += f'{Strings.WAITING_LIST}\n'
             winners += get_user_info(counter, shuffle_id)
         else:
             winners += get_user_info(counter, shuffle_id)
