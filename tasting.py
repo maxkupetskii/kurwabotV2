@@ -8,12 +8,16 @@ from datetime import datetime
 
 @dataclass
 class Tasting:
-    name: str = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    chat_id: int
+    name: str | None = None
     tasting_message_id: int | None = None
     people: int = 0
     users: dict[int, User] = field(default_factory=lambda: {})
     initiated_user: User | None = None
     shuffled_ids: list[int] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.name = f'{self.chat_id} {datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}'
 
     def clear(self):
         self.tasting_message_id = None

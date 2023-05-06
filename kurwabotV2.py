@@ -46,6 +46,31 @@ def restricted(func):
 current_tasting: Tasting | None = None
 
 
+@restricted
+async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    global current_tasting
+    if current_tasting is None:
+        current_tasting = Tasting(chat_id=update.message.chat_id)
+        # удаляем сообщение с командой
+        await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+        # пустая табличка с дегой, надо запомнить id
+        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=current_tasting.generate_keyboard())
+        current_tasting.tasting_message_id = init_message.message_id
+    else:
+        reply_keyboard = [[Strings.REPLY_DELETE, Strings.REPLY_CANCEL]]
+        await update.message.reply_text(
+            Strings.REPLY_TITLE_DELETE,
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
+        )
+
+
+@restricted
+async def kill_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    global current_tasting
+    current_tasting = None
+    await create_tasting(update, context)
+
+
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
@@ -72,28 +97,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 @restricted
-async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global current_tasting
-    if current_tasting is None:
-        current_tasting = Tasting()
-        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=current_tasting.generate_keyboard())
-        current_tasting.tasting_message_id = init_message.message_id
-    else:
-        reply_keyboard = [[Strings.REPLY_DELETE, Strings.REPLY_CANCEL]]
-        await update.message.reply_text(
-            Strings.REPLY_TITLE_DELETE,
-            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, selective=True)
-        )
-
-
-@restricted
-async def kill_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global current_tasting
-    current_tasting = None
-    await create_tasting(update, context)
-
-
-@restricted
 async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if current_tasting.people == 0:
         await update.callback_query.message.reply_text(Strings.REPLY_0_PEOPLE)
@@ -115,7 +118,11 @@ async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     current_tasting.roll(initiated_user=update.effective_user)
     winners = current_tasting.winners_message()
+    # удаляем сообщение "Стартуём!"
+    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+    # удаляем сообщение с кнопками/участниками
     await context.bot.delete_message(chat_id=update.message.chat_id, message_id=current_tasting.tasting_message_id)
+    # засылаем победителей
     await update.message.reply_text(winners, reply_markup=ReplyKeyboardRemove())
     current_tasting = None
 
