@@ -186,7 +186,7 @@ async def remove_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global users
     user = update.effective_user
     if user.id in users.keys():
-        del users[update.effective_user.id]
+        del users[user.id]
         await update.callback_query.edit_message_reply_markup(reply_markup=generate_keyboard())
 
 
