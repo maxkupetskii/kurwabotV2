@@ -1,14 +1,12 @@
 #!/usr/bin/python3
-from datetime import datetime
 from match_regex import RegexEqual
 from strings import Strings
-import telegram
 from secrets import ALLOWED_IDS, KURWA_TOKEN
 from actions import Action
 import logging
 from functools import wraps
 from telegram import __version__ as TG_VER
-import random
+from tasting import Tasting
 
 try:
     from telegram import __version_info__
@@ -45,48 +43,23 @@ def restricted(func):
     return wrapped
 
 
-current_tasting, current_tasting_message_id = None, None
-people: int = 0
-users: dict[int, telegram.User] = {}
-
-
-def generate_keyboard() -> InlineKeyboardMarkup:
-    keyboard = [
-        [InlineKeyboardButton(Strings.KEYBOARD_TITLE, callback_data=Action.ROLL.value)],
-        [
-            InlineKeyboardButton(Strings.KEYBOARD_MINUS, callback_data=Action.MINUS.value),
-            InlineKeyboardButton(Strings.KEYBOARD_PEOPLE.format(people), callback_data=Action.NUM.value),
-            InlineKeyboardButton(Strings.KEYBOARD_PLUS, callback_data=Action.PLUS.value)
-        ],
-        [InlineKeyboardButton(Strings.KEYBOARD_ADD, callback_data=Action.ADD_ME.value)]
-    ]
-    if len(users) > 0:
-        for user_id, user in users.items():
-            # use last_name if username is not present
-            last = f'(@{user.username})' if user.username else user.last_name
-            single_user = [
-                InlineKeyboardButton(f'{user.first_name} {last}', callback_data=Action.NAME.value),
-                InlineKeyboardButton(Strings.KEYBOARD_REMOVE, callback_data=f'{Action.REMOVE_ME.value} id:{user_id}'),
-            ]
-            keyboard.append(single_user)
-    return InlineKeyboardMarkup(keyboard)
+current_tasting: Tasting | None = None
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global people, users
     query = update.callback_query
     await query.answer()
     match RegexEqual(query.data):
         case Action.ROLL.value:
             await roll_tasting(update, context)
         case Action.MINUS.value:
-            if people > 0 and update.effective_user.id in ALLOWED_IDS:
-                people -= 1
-                await query.edit_message_reply_markup(reply_markup=generate_keyboard())
+            if current_tasting.people > 0 and update.effective_user.id in ALLOWED_IDS:
+                current_tasting.people -= 1
+                await query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
         case Action.PLUS.value:
             if update.effective_user.id in ALLOWED_IDS:
-                people += 1
-                await query.edit_message_reply_markup(reply_markup=generate_keyboard())
+                current_tasting.people += 1
+                await query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
         case Action.ADD_ME.value:
             await add_me(update, context)
         case Action.REMOVE_ME.value:
@@ -100,11 +73,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @restricted
 async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global current_tasting, current_tasting_message_id
+    global current_tasting
     if current_tasting is None:
-        current_tasting = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=generate_keyboard())
-        current_tasting_message_id = init_message.message_id
+        current_tasting = Tasting()
+        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=current_tasting.generate_keyboard())
+        current_tasting.tasting_message_id = init_message.message_id
     else:
         reply_keyboard = [[Strings.REPLY_DELETE, Strings.REPLY_CANCEL]]
         await update.message.reply_text(
@@ -115,18 +88,17 @@ async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @restricted
 async def kill_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global current_tasting, users
+    global current_tasting
     current_tasting = None
-    users.clear()
     await create_tasting(update, context)
 
 
 @restricted
 async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if people == 0:
+    if current_tasting.people == 0:
         await update.callback_query.message.reply_text(Strings.REPLY_0_PEOPLE)
         return
-    if len(users) == 0:
+    if len(current_tasting.users) == 0:
         await update.callback_query.message.reply_text(Strings.REPLY_0_USERS)
         return
     reply_keyboard = [[Strings.REPLY_START, Strings.REPLY_CANCEL]]
@@ -138,56 +110,26 @@ async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 @restricted
 async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global users, current_tasting, current_tasting_message_id, people
+    global current_tasting
     if current_tasting is None:
         return
-    initiated_user = update.effective_user
-    all_ids = list(users.keys())
-    random.shuffle(all_ids)
-    winners = winners_message(all_ids)
-    winners += f'\n@{initiated_user.username}'
-    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=current_tasting_message_id)
+    current_tasting.roll(initiated_user=update.effective_user)
+    winners = current_tasting.winners_message()
+    await context.bot.delete_message(chat_id=update.message.chat_id, message_id=current_tasting.tasting_message_id)
     await update.message.reply_text(winners, reply_markup=ReplyKeyboardRemove())
-    current_tasting, current_tasting_message_id, people = None, None, 0
-    users.clear()
-
-
-def winners_message(shuffled_ids: list) -> str:
-    def get_user_info(num: int, user_id: int) -> str:
-        user = users.get(user_id)
-        user_string = f'{num + 1}) {user.full_name}'
-        if user.username:
-            user_string += f' (@{user.username})'
-        user_string += "\n"
-        return user_string
-
-    winners = f'{Strings.TITLE}\n\n'
-    winners += f'{Strings.WINNERS}\n'
-    for counter, shuffle_id in enumerate(shuffled_ids):
-        if counter < people:
-            winners += get_user_info(counter, shuffle_id)
-        elif counter == people:
-            winners += f'{Strings.WAITING_LIST}\n'
-            winners += get_user_info(counter, shuffle_id)
-        else:
-            winners += get_user_info(counter, shuffle_id)
-    return winners
+    current_tasting = None
 
 
 async def add_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global users
-    user = update.effective_user
-    if user.id not in users.keys():
-        users[user.id] = user
-        await update.callback_query.edit_message_reply_markup(reply_markup=generate_keyboard())
+    success = current_tasting.add(update.effective_user)
+    if success:
+        await update.callback_query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
 
 
 async def remove_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global users
-    user = update.effective_user
-    if user.id in users.keys():
-        del users[user.id]
-        await update.callback_query.edit_message_reply_markup(reply_markup=generate_keyboard())
+    success = current_tasting.remove(update.effective_user)
+    if success:
+        await update.callback_query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
 
 
 def main() -> None:

@@ -3,28 +3,34 @@ from telegram import User, InlineKeyboardButton, InlineKeyboardMarkup
 import random
 from strings import Strings
 from actions import Action
+from datetime import datetime
 
 
 @dataclass
 class Tasting:
-    current_message_id: int | None
+    name: str = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    tasting_message_id: int | None = None
     people: int = 0
     users: dict[int, User] = field(default_factory=lambda: {})
     initiated_user: User | None = None
     shuffled_ids: list[int] = field(default_factory=list)
 
     def clear(self):
-        self.current_message_id = None
+        self.tasting_message_id = None
         self.people = 0
         self.users.clear()
 
-    def add(self, user: User):
+    def add(self, user: User) -> bool:
         if user.id not in self.users.keys():
             self.users[user.id] = user
+            return True
+        return False
 
-    def remove(self, user: User):
+    def remove(self, user: User) -> bool:
         if user.id in self.users.keys():
             del self.users[user.id]
+            return True
+        return False
 
     def generate_keyboard(self) -> InlineKeyboardMarkup:
         keyboard = [
@@ -48,7 +54,7 @@ class Tasting:
                 keyboard.append(single_user)
         return InlineKeyboardMarkup(keyboard)
 
-    def roll(self, initiated_user):
+    def roll(self, initiated_user: User):
         self.initiated_user = initiated_user
         all_ids = list(self.users.keys())
         random.shuffle(all_ids)
@@ -73,4 +79,5 @@ class Tasting:
                 winners += get_user_info(counter, shuffle_id)
             else:
                 winners += get_user_info(counter, shuffle_id)
+        winners += f'\n@{self.initiated_user.username}'
         return winners
