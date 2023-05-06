@@ -6,7 +6,8 @@ from actions import Action
 import logging
 from functools import wraps
 from telegram import __version__ as TG_VER
-from tasting import Tasting
+from tasting import Tasting, REMOVE_ID_INDEX
+import asyncio
 
 try:
     from telegram import __version_info__
@@ -89,7 +90,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await add_me(update, context)
         case Action.REMOVE_ME.value:
             triggered_id = f'{update.effective_user.id}'
-            id_to_delete = query.data[13:]  # haha, magic number
+            id_to_delete = query.data[REMOVE_ID_INDEX:]
             if triggered_id == id_to_delete:
                 await remove_me(update, context)
         case _:
@@ -99,10 +100,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @restricted
 async def roll_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if current_tasting.people == 0:
-        await update.callback_query.message.reply_text(Strings.REPLY_0_PEOPLE)
+        reply_message = await update.callback_query.message.reply_text(Strings.REPLY_0_PEOPLE)
+        await asyncio.sleep(1)
+        await context.bot.delete_message(chat_id=update.callback_query.message.chat_id, message_id=reply_message.message_id)
         return
     if len(current_tasting.users) == 0:
-        await update.callback_query.message.reply_text(Strings.REPLY_0_USERS)
+        reply_message = await update.callback_query.message.reply_text(Strings.REPLY_0_USERS)
+        await asyncio.sleep(1)
+        await context.bot.delete_message(chat_id=update.callback_query.message.chat_id, message_id=reply_message.message_id)
         return
     reply_keyboard = [[Strings.REPLY_START, Strings.REPLY_CANCEL]]
     await update.callback_query.message.reply_text(

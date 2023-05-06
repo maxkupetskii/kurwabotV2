@@ -6,6 +6,9 @@ from actions import Action
 from datetime import datetime
 
 
+REMOVE_ID_INDEX = 13  # в коллбеке для удаления человека передаём айди, начинается с 13 индекса
+
+
 @dataclass
 class Tasting:
     chat_id: int
