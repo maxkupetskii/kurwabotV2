@@ -196,8 +196,8 @@ def main() -> None:
     application.add_handler(CommandHandler("kurwa_bobr", create_tasting))
     application.add_handler(CallbackQueryHandler(button))
 
-    application.add_handler(MessageHandler(filters.Regex("^(Стираём всех!)$"), kill_tasting))
-    application.add_handler(MessageHandler(filters.Regex("^(Стартуём!)$"), choose_winners))
+    application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_DELETE})$'), kill_tasting))
+    application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_START})$'), choose_winners))
     application.run_polling()
 
 
