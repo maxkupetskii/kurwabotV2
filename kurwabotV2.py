@@ -19,7 +19,7 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
         f"{TG_VER} version of this example, "
         f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
     )
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
     Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 )
@@ -121,23 +121,19 @@ async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def add_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    success = current_tasting.add(update.effective_user)
-    if success:
+    if current_tasting.add(update.effective_user):
         await update.callback_query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
 
 
 async def remove_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    success = current_tasting.remove(update.effective_user)
-    if success:
+    if current_tasting.remove(update.effective_user):
         await update.callback_query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
 
 
 def main() -> None:
     application = Application.builder().token(KURWA_TOKEN).build()
-
     application.add_handler(CommandHandler("kurwa_bobr", create_tasting))
     application.add_handler(CallbackQueryHandler(button))
-
     application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_DELETE})$'), kill_tasting))
     application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_START})$'), choose_winners))
     application.run_polling()
