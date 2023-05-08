@@ -1,8 +1,8 @@
+from .strings import Strings
+from .actions import Action
 from dataclasses import dataclass, field
 from telegram import User, InlineKeyboardButton, InlineKeyboardMarkup
 import random
-from strings import Strings
-from actions import Action
 from datetime import datetime
 
 

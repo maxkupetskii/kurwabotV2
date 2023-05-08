@@ -9,7 +9,7 @@ __pycache__/
 *.so
 
 # secrets.py
-secrets.py
+kurwa_bot/secrets.py
 
 # Distribution / packaging
 .Python

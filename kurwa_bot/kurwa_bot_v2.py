@@ -1,12 +1,11 @@
-#!/usr/bin/python3
-from match_regex import RegexEqual
-from strings import Strings
-from secrets import ALLOWED_IDS, KURWA_TOKEN
-from actions import Action
+from extensions.match_regex import RegexEqual
+from .strings import Strings
+from .secrets import ALLOWED_IDS, KURWA_TOKEN
+from .actions import Action
+from .tasting import Tasting, REMOVE_ID_INDEX
 import logging
 from functools import wraps
 from telegram import __version__ as TG_VER
-from tasting import Tasting, REMOVE_ID_INDEX
 import asyncio
 
 try:
@@ -142,14 +141,10 @@ async def remove_me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.callback_query.edit_message_reply_markup(reply_markup=current_tasting.generate_keyboard())
 
 
-def main() -> None:
+def start_bot() -> None:
     application = Application.builder().token(KURWA_TOKEN).build()
     application.add_handler(CommandHandler("kurwa_bobr", create_tasting))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_DELETE})$'), kill_tasting))
     application.add_handler(MessageHandler(filters.Regex(f'^({Strings.REPLY_START})$'), choose_winners))
     application.run_polling()
-
-
-if __name__ == "__main__":
-    main()
