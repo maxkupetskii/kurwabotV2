@@ -54,7 +54,7 @@ async def create_tasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # удаляем сообщение с командой
         await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
         # пустая табличка с дегой, надо запомнить id
-        init_message = await update.message.reply_text(Strings.TITLE, reply_markup=current_tasting.generate_keyboard())
+        init_message = await context.bot.send_message(chat_id=update.message.chat_id, text=Strings.TITLE, reply_markup=current_tasting.generate_keyboard())
         current_tasting.tasting_message_id = init_message.message_id
     else:
         reply_keyboard = [[Strings.REPLY_DELETE, Strings.REPLY_CANCEL]]
@@ -127,7 +127,7 @@ async def choose_winners(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # удаляем сообщение с кнопками/участниками
     await context.bot.delete_message(chat_id=update.message.chat_id, message_id=current_tasting.tasting_message_id)
     # засылаем победителей
-    await update.message.reply_text(winners, reply_markup=ReplyKeyboardRemove())
+    await context.bot.send_message(chat_id=update.message.chat_id, text=winners, reply_markup=ReplyKeyboardRemove())
     current_tasting = None
 
 
